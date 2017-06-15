@@ -4,8 +4,10 @@
  */
 
 import React from 'react';
+import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
 import {getRevision} from '../store/selectors';
+import {Revision} from '../storage/gist';
 
 const buttonStyle = {
   backgroundColor: 'transparent',
@@ -60,5 +62,9 @@ class GistBanner extends React.Component {
     );
   }
 }
+
+GistBanner.propTypes = {
+  revision: PropTypes.instanceOf(Revision),
+};
 
 export default connect(state => ({revision: getRevision(state)}))(GistBanner);

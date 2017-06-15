@@ -128,7 +128,7 @@ export function fork(revision, data) {
   .then(data => new Revision(data));
 }
 
-class Revision {
+export class Revision {
   constructor(gist) {
     this._gist = gist;
     this._config = JSON.parse(gist.files['astexplorer.json'].content);
