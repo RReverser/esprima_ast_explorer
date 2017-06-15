@@ -110,23 +110,23 @@ const plugins = [
   new InlineManifestWebpackPlugin({
     name: 'webpackManifest',
   }),
+
   DEV ?
     new webpack.NamedModulesPlugin() :
     new webpack.HashedModuleIdsPlugin(),
-  new ProgressBarPlugin(),
-  new webpack.LoaderOptionsPlugin({
+
+  ...(DEV ? [] : [new webpack.optimize.UglifyJsPlugin({
     test: /\.jsx?$/,
-    options: {
-      'uglify-loader': {
-        mangle: {
-          except: ['Plugin', 'Tree', 'JSON'],
-        },
-        compress: {
-          warnings: false,
-        },
-      },
+    exclude: /flow_parser\.js/,
+    mangle: {
+      except: ['Plugin', 'Tree', 'JSON'],
     },
-  }),
+    compress: {
+      warnings: false,
+    },
+  })]),
+
+  new ProgressBarPlugin(),
 ];
 
 module.exports = Object.assign({
@@ -160,7 +160,9 @@ module.exports = Object.assign({
         options: {
           babelrc: false,
           presets: [
-            'env',
+            ['env', {
+              module: false,
+            }],
             'react',
             ...(DEV ? [] : ['react-optimize']),
           ],
@@ -200,22 +202,6 @@ module.exports = Object.assign({
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
         loader: 'file-loader',
       },
-      ...(DEV ? [] : [
-        {
-          test: /\.jsx?$/,
-          exclude: /flow_parser\.js/,
-          loader: 'uglify-loader',
-          enforce: 'post',
-          options: {
-            mangle: {
-              except: ['Plugin', 'Tree', 'JSON'],
-            },
-            compress: {
-              warnings: false,
-            },
-          },
-        },
-      ]),
     ],
 
     noParse: [
