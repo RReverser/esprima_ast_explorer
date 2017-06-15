@@ -2,9 +2,8 @@ import React from 'react';
 import cx from 'classnames';
 import visualizations from './visualization';
 import getFocusPath from './getFocusPath';
+import PropTypes from 'prop-types';
 import PubSub from 'pubsub-js';
-
-const {PropTypes} = React;
 
 function parse(parser, code, parserSettings) {
   if (!parser._promise) {
@@ -149,10 +148,10 @@ export default class ASTOutput extends React.Component {
 }
 
 ASTOutput.propTypes = {
-  code: React.PropTypes.string,
+  code: PropTypes.string,
   parser: PropTypes.object.isRequired,
   parserSettings: PropTypes.object,
   cursor: PropTypes.any,
-  onParseError: React.PropTypes.func.isRequired,
+  onParseError: PropTypes.func.isRequired,
 };
 
