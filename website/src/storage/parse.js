@@ -13,20 +13,17 @@ function getIDAndRevisionFromHash() {
   return null;
 }
 
-function fetchSnippet(snippetID, revisionID='latest') {
-  return api(`/parse/${snippetID}/${revisionID}`)
-    .then(response => {
-      if (response.ok) {
-        return response.json();
-      }
-      switch (response.status) {
-        case 404:
-          throw new Error(`Snippet with ID ${snippetID}/${revisionID} doesn't exist.`);
-        default:
-          throw new Error('Unknown error.');
-      }
-    })
-    .then(response => new Revision(response));
+async function fetchSnippet(snippetID, revisionID='latest') {
+  let response = await api(`/parse/${snippetID}/${revisionID}`);
+  if (!response.ok) {
+    switch (response.status) {
+      case 404:
+        throw new Error(`Snippet with ID ${snippetID}/${revisionID} doesn't exist.`);
+      default:
+        throw new Error('Unknown error.');
+    }
+  }
+  return new Revision(await response.json());
 }
 
 export function owns(snippet) {

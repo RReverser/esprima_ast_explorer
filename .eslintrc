@@ -1,7 +1,7 @@
 extends: ["eslint:recommended" , "plugin:react/recommended"]
 
 parserOptions:
-  ecmaVersion: 6
+  ecmaVersion: 2017
   sourceType: module
   ecmaFeatures:
     jsx: true
@@ -17,7 +17,7 @@ rules:
   no-path-concat: 0
   no-undef: 2
   no-underscore-dangle: 0
-  no-unused-vars: 
+  no-unused-vars:
     - 1
     - varsIgnorePattern: '^_'
   no-use-before-define: 0

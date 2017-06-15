@@ -13,25 +13,22 @@ function getIDAndRevisionFromHash() {
   return null;
 }
 
-function fetchSnippet(snippetID, revisionID='latest') {
-  return api(
+async function fetchSnippet(snippetID, revisionID='latest') {
+  let response = await api(
     `/gist/${snippetID}` + (revisionID ? `/${revisionID}` : ''),
     {
       method: 'GET',
     }
-  )
-  .then(response => {
-    if (response.ok) {
-      return response.json();
-    }
+  );
+  if (!response.ok) {
     switch (response.status) {
       case 404:
         throw new Error(`Snippet with ID ${snippetID}/${revisionID} doesn't exist.`);
       default:
         throw new Error('Unknown error.');
     }
-  })
-  .then(response => new Revision(response));
+  }
+  return new Revision(await response.json());
 }
 
 export function owns(snippet) {
@@ -53,8 +50,8 @@ export function fetchFromURL() {
 /**
  * Create a new snippet.
  */
-export function create(data) {
-  return api(
+export async function create(data) {
+  let response = await api(
     '/gist',
     {
       method: 'POST',
@@ -63,53 +60,45 @@ export function create(data) {
       },
       body: JSON.stringify(data),
     }
-  )
-  .then(response => {
-    if (response.ok) {
-      return response.json();
-    }
+  );
+  if (!response.ok) {
     throw new Error('Unable to create snippet.');
-  })
-  .then(data => new Revision(data));
+  }
+  return new Revision(await response.json());
 }
 
 /**
  * Update an existing snippet.
  */
-export function update(revision, data) {
+export async function update(revision, data) {
   // Fetch latest version of snippet
-  return fetchSnippet(revision.getSnippetID())
-    .then(latestRevision => {
-      if (latestRevision.getTransformerID() && !data.toolID) {
-        // Revision was updated to *remove* the transformer, hence we have
-        // to signal the server to delete the transform.js file
-        data.transform = null;
-      }
-      return api(
-        `/gist/${revision.getSnippetID()}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(data),
-        }
-      )
-      .then(response => {
-        if (response.ok) {
-          return response.json();
-        }
-        throw new Error('Unable to update snippet.');
-      })
-      .then(data => new Revision(data));
-    });
+  let latestRevision = await fetchSnippet(revision.getSnippetID());
+  if (latestRevision.getTransformerID() && !data.toolID) {
+    // Revision was updated to *remove* the transformer, hence we have
+    // to signal the server to delete the transform.js file
+    data.transform = null;
+  }
+  let response = await api(
+    `/gist/${revision.getSnippetID()}`,
+    {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    }
+  );
+  if (!response.ok) {
+    throw new Error('Unable to update snippet.');
+  }
+  return new Revision(await response.json());
 }
 
 /**
  * Fork existing snippet.
  */
-export function fork(revision, data) {
-  return api(
+export async function fork(revision, data) {
+  let response = await api(
     `/gist/${revision.getSnippetID()}/${revision.getRevisionID()}`,
     {
       method: 'POST',
@@ -118,14 +107,11 @@ export function fork(revision, data) {
       },
       body: JSON.stringify(data),
     }
-  )
-  .then(response => {
-    if (response.ok) {
-      return response.json();
-    }
+  );
+  if (!response.ok) {
     throw new Error('Unable to fork snippet.');
-  })
-  .then(data => new Revision(data));
+  }
+  return new Revision(await response.json());
 }
 
 export class Revision {

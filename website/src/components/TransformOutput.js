@@ -12,48 +12,44 @@ function loadJSTransformer(callback) {
   require(['../parsers/utils/transformJSCode'], toES5 => callback(toES5.default));
 }
 
-function transform(transformer, transformCode, code) {
+async function transform(transformer, transformCode, code) {
   if (!transformer._promise) {
     transformer._promise = Promise.all([
       new Promise(transformer.loadTransformer),
       new Promise(loadJSTransformer),
     ]);
   }
-  // Use Promise.resolve(null) to return all errors as rejected promises
-  return transformer._promise.then(([realTransformer, toES5]) => {
-    let es5Code = toES5(transformCode);
-    // assert that there are no obvious infinite loops
-    halts(es5Code);
-    // guard against non-obvious loops with a timeout of 5 seconds
-    let start = Date.now();
-    es5Code = loopProtect(
-      es5Code,
-      [
-        // this function gets called in all possible loops
-        // it gets passed the line number as its only argument
-        '(function (line) {',
-        'if (Date.now() > ' + (start + 5000) + ') {',
-        '  throw new Error("Infinite loop detected on line " + line);',
-        '}',
-        '})',
-      ].join('')
-    );
-    let result = transformer.transform(
-      realTransformer,
-      es5Code,
-      code
-    );
-    return Promise.resolve(result).then(result => {
-      let map = null;
-      if (typeof result !== 'string') {
-        if (result.map) {
-          map = new SourceMapConsumer(result.map);
-        }
-        result = result.code;
-      }
-      return { result, map };
-    });
-  });
+  let [realTransformer, toES5] = await transformer._promise;
+  let es5Code = toES5(transformCode);
+  // assert that there are no obvious infinite loops
+  halts(es5Code);
+  // guard against non-obvious loops with a timeout of 5 seconds
+  let start = Date.now();
+  es5Code = loopProtect(
+    es5Code,
+    [
+      // this function gets called in all possible loops
+      // it gets passed the line number as its only argument
+      '(function (line) {',
+      'if (Date.now() > ' + (start + 5000) + ') {',
+      '  throw new Error("Infinite loop detected on line " + line);',
+      '}',
+      '})',
+    ].join('')
+  );
+  let result = await transformer.transform(
+    realTransformer,
+    es5Code,
+    code
+  );
+  let map = null;
+  if (typeof result !== 'string') {
+    if (result.map) {
+      map = new SourceMapConsumer(result.map);
+    }
+    result = result.code;
+  }
+  return { result, map };
 }
 
 export default class TransformOutput extends React.Component {
@@ -67,35 +63,40 @@ export default class TransformOutput extends React.Component {
     this._posFromIndex = this._posFromIndex.bind(this);
   }
 
-  componentDidMount() {
-    transform(
-      this.props.transformer,
-      this.props.transformCode,
-      this.props.code
-    ).then(
-      ({ result, map }) => this.setState({ result, map }),
-      error => this.setState({ error })
-    );
+  async componentDidMount() {
+    let state;
+    try {
+      state = await transform(
+        this.props.transformer,
+        this.props.transformCode,
+        this.props.code
+      );
+    } catch (error) {
+      state = { error };
+    }
+    this.setState(state);
   }
 
-  componentWillReceiveProps(nextProps) {
+  async componentWillReceiveProps(nextProps) {
     if (this.props.transformCode !== nextProps.transformCode ||
         this.props.code !== nextProps.code ||
         this.props.transformer !== nextProps.transformer) {
       if (console.clear) { // eslint-disable-line no-console
         console.clear(); // eslint-disable-line no-console
       }
-      transform(
-        nextProps.transformer,
-        nextProps.transformCode,
-        nextProps.code
-      ).then(
-        ({ result, map }) => ({ result, map, error: null }),
-        error => {
-          console.error(error); // eslint-disable-line no-console
-          return { error };
-        }
-      ).then(state => this.setState(state));
+      let state;
+      try {
+        let { result, map } = await transform(
+          nextProps.transformer,
+          nextProps.transformCode,
+          nextProps.code
+        );
+        state = { result, map, error: null };
+      } catch (error) {
+        console.error(error); // eslint-disable-line no-console
+        state = { error };
+      }
+      this.setState(state);
     }
   }
 

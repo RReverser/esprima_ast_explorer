@@ -4,13 +4,12 @@ import visualizations from './visualization';
 import getFocusPath from './getFocusPath';
 import PropTypes from 'prop-types';
 
-function parse(parser, code, parserSettings) {
+async function parse(parser, code, parserSettings) {
   if (!parser._promise) {
     parser._promise = new Promise(parser.loadParser);
   }
-  return parser._promise.then(
-    realParser => parser.parse(realParser, code, parserSettings)
-  );
+  let realParser = await parser._promise;
+  return parser.parse(realParser, code, parserSettings);
 }
 
 function formatTime(time) {
@@ -61,33 +60,31 @@ export default class ASTOutput extends React.Component {
       nextState.output !== this.state.output;
   }
 
-  _parse(parser, code, parserSettings) {
+  async _parse(parser, code, parserSettings) {
     if (!parser || code == null) {
       return;
     }
     const start = Date.now();
-    parse(parser, code, parserSettings).then(
-      ast => {
-        // Did the parser or code change in the meantime?
-        if (parser !== this.props.parser && code !== this.props.code) {
-          return;
-        }
-        this.setState({
-          parseTime: Date.now() - start,
-          ast: ast,
-          focusPath: this.props.cursor != null ?
-            getFocusPath(ast, this.props.cursor, parser) :
-            [],
-          parseError: null,
-        });
-        this.props.onParseError(null);
-      },
-      parseError => {
-        console.error(parseError); // eslint-disable-line no-console
-        this.setState({parseError, parseTime: null});
-        this.props.onParseError(parseError);
+    try {
+      let ast = await parse(parser, code, parserSettings);
+      // Did the parser or code change in the meantime?
+      if (parser !== this.props.parser && code !== this.props.code) {
+        return;
       }
-    );
+      this.setState({
+        parseTime: Date.now() - start,
+        ast: ast,
+        focusPath: this.props.cursor != null ?
+          getFocusPath(ast, this.props.cursor, parser) :
+          [],
+        parseError: null,
+      });
+      this.props.onParseError(null);
+    } catch (parseError) {
+      console.error(parseError); // eslint-disable-line no-console
+      this.setState({parseError, parseTime: null});
+      this.props.onParseError(parseError);
+    }
   }
 
   _changeOutput(event) {

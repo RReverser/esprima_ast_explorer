@@ -39,7 +39,7 @@ export default class PasteDropTarget extends React.Component {
     let target = this.refs.container;
 
     // Handle pastes
-    this._bindListener(document, 'paste', event => {
+    this._bindListener(document, 'paste', async event => {
       if (!event.clipboardData) {
         // No browser support? :(
         return;
@@ -51,14 +51,17 @@ export default class PasteDropTarget extends React.Component {
       }
       event.stopPropagation();
       event.preventDefault();
-      this._jsonToCode(cbdata.getData('text/plain')).then(
-        code => this.props.onText('paste', event, code),
-        ex => {
-          if (event.target.nodeName !== 'TEXTAREA') {
-            this._onASTError('paste', event, ex);
-          }
+      try {
+        this.props.onText(
+          'paste',
+          event,
+          await this._jsonToCode(cbdata.getData('text/plain'))
+        );
+      } catch (ex) {
+        if (event.target.nodeName !== 'TEXTAREA') {
+          this._onASTError('paste', event, ex);
         }
-      );
+      }
     }, true);
 
     let timer;
@@ -86,27 +89,21 @@ export default class PasteDropTarget extends React.Component {
       event.preventDefault();
       event.stopPropagation();
       let reader = new FileReader();
-      reader.onload = readerEvent => {
+      reader.onload = async readerEvent => {
         let text = readerEvent.target.result;
         if (categoryId === 'JSON' || categoryId === 'TEXT') {
-          text = this._jsonToCode(text).then(
-            text => {
-              categoryId = 'javascript';
-              return text;
-            },
-            ex => {
-              if (categoryId === 'JSON') {
-                this._onASTError('drop', readerEvent, ex);
-              } else {
-                categoryId = undefined;
-                return text;
-              }
+          try {
+            text = await this._jsonToCode(text);
+            categoryId = 'javascript';
+          } catch (ex) {
+            if (categoryId === 'JSON') {
+              this._onASTError('drop', readerEvent, ex);
+            } else {
+              categoryId = undefined;
             }
-          );
+          }
         }
-        Promise.resolve(text).then(text => {
-          this.props.onText('drop', readerEvent, text, categoryId);
-        });
+        this.props.onText('drop', readerEvent, text, categoryId);
       };
       reader.readAsText(file);
     }, true);
@@ -125,17 +122,15 @@ export default class PasteDropTarget extends React.Component {
     this._listeners = null;
   }
 
-  _jsonToCode(json) {
+  async _jsonToCode(json) {
     let ast;
     try {
       ast = JSON.parse(json);
+    } catch(err) {
+      return json;
     }
-    catch(err) {
-      return Promise.resolve(json);
-    }
-    return importEscodegen().then(escodegen => {
-      return escodegen.generate(ast, {format: {indent: {style: '  '}}});
-    });
+    const { generate } = await importEscodegen();
+    return generate(ast, {format: {indent: {style: '  '}}});
   }
 
   _bindListener(elem, event, listener, capture) {
