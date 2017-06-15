@@ -160,13 +160,14 @@ module.exports = Object.assign({
         options: {
           babelrc: false,
           presets: [
-            require.resolve('babel-preset-es2015'),
-            require.resolve('babel-preset-stage-0'),
-            require.resolve('babel-preset-react'),
+            'env',
+            'react',
+            ...(DEV ? [] : ['react-optimize']),
           ],
           plugins: [
+            'transform-object-rest-spread',
             [
-              require.resolve('babel-plugin-transform-runtime'),
+              'transform-runtime',
               // https://github.com/babel/babel/issues/2877 describes an issue
               // where babel inserts untranspiled import statements into a
               // module. That module then contains ES6 and CommonJS module code,
